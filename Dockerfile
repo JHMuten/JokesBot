@@ -20,28 +20,49 @@ COPY app.py .
 COPY analytics.py .
 COPY jokes.json .
 COPY templates/ templates/
-COPY startup.sh .
-
-# Make startup script executable
-RUN chmod +x startup.sh
 
 # Create directories for persistent data
 RUN mkdir -p chroma_db
 
 # Create analytics file if it doesn't exist
-RUN touch analytics.json && echo "[]" > analytics.json
+RUN echo "[]" > analytics.json
 
-# Pre-initialize ChromaDB with jokes (run once during build)
-RUN python -c "import chromadb; import json; \
-    client = chromadb.PersistentClient(path='./chroma_db'); \
-    collection = client.get_or_create_collection(name='jokes'); \
-    with open('jokes.json') as f: jokes = json.load(f); \
-    if collection.count() == 0: \
-        docs = [j.get('joke', '') if j.get('type')=='single' else f\"{j.get('setup','')} {j.get('delivery','')}\" for j in jokes]; \
-        metas = [{'category': j.get('category','Unknown'), 'type': j.get('type','unknown'), 'id': str(j.get('id',i))} for i,j in enumerate(jokes)]; \
-        ids = [f'joke_{i}' for i in range(len(jokes))]; \
-        collection.add(documents=docs, metadatas=metas, ids=ids); \
-        print(f'Initialized ChromaDB with {len(docs)} jokes')"
+# Create initialization script
+RUN echo 'import chromadb\n\
+import json\n\
+\n\
+client = chromadb.PersistentClient(path="./chroma_db")\n\
+collection = client.get_or_create_collection(name="jokes")\n\
+\n\
+if collection.count() == 0:\n\
+    with open("jokes.json") as f:\n\
+        jokes = json.load(f)\n\
+    \n\
+    docs = []\n\
+    metas = []\n\
+    ids = []\n\
+    \n\
+    for i, joke in enumerate(jokes):\n\
+        if joke.get("type") == "single":\n\
+            joke_text = joke.get("joke", "")\n\
+        else:\n\
+            joke_text = f"{joke.get(\"setup\", \"\")} {joke.get(\"delivery\", \"\")}"\n\
+        \n\
+        docs.append(joke_text)\n\
+        metas.append({\n\
+            "category": joke.get("category", "Unknown"),\n\
+            "type": joke.get("type", "unknown"),\n\
+            "id": str(joke.get("id", i))\n\
+        })\n\
+        ids.append(f"joke_{i}")\n\
+    \n\
+    collection.add(documents=docs, metadatas=metas, ids=ids)\n\
+    print(f"Initialized ChromaDB with {len(docs)} jokes")\n\
+else:\n\
+    print(f"ChromaDB already has {collection.count()} jokes")' > init_chroma.py
+
+# Initialize ChromaDB
+RUN python init_chroma.py
 
 # Set environment variables
 ENV PORT=8080
@@ -50,5 +71,5 @@ ENV PYTHONUNBUFFERED=1
 # Expose port
 EXPOSE 8080
 
-# Run with startup script
-CMD ["./startup.sh"]
+# Run with gunicorn
+CMD exec gunicorn --bind :$PORT --workers 1 --threads 8 --timeout 0 app:app

@@ -52,7 +52,10 @@ test_*.py
 # Misc
 .DS_Store
 Thumbs.db
-analytics.json
 fetch_jokes.py
 MONITORING_GUIDE.md
 ANALYTICS_SUMMARY.md
+CLOUDRUN_FIX.md
+startup.sh
+.dockerignore
+Dockerfile
