@@ -1,16 +1,9 @@
 # --- Ignore large data/artifacts ---
 *.zip
-all_pdfs/
-pdf_samples/
-
-# --- Diagram files (for presentations only) ---
-diagrams/
 
 # --- Python / Streamlit junk ---
 __pycache__/
 *.pyc
-# Note: .streamlit/config.toml is committed for Cloud Run
-.streamlit/secrets.toml
 
 # --- Environment ---
 .env
@@ -19,3 +12,10 @@ __pycache__/
 # --- Virtual env ---
 venv/
 .venv/
+
+# Analytics data
+analytics.json
+
+# IDE
+.vscode/
+.idea/

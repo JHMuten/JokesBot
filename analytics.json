@@ -14,5 +14,23 @@
     "query_id": 1772124173533,
     "rating": 5,
     "comment": ""
+  },
+  {
+    "timestamp": "2026-02-26T16:57:42.117422",
+    "event_type": "query",
+    "user_message": "how many christmas jokes do you have?",
+    "response_type": "success",
+    "jokes_count": 3,
+    "response_time_ms": 1441.7476654052734,
+    "error": null
+  },
+  {
+    "timestamp": "2026-02-26T17:07:03.007165",
+    "event_type": "query",
+    "user_message": "tell me a joke",
+    "response_type": "success",
+    "jokes_count": 2,
+    "response_time_ms": 1118.3669567108154,
+    "error": null
   }
 ]

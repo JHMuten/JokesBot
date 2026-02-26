@@ -18,8 +18,8 @@ api_key = os.getenv('OPENROUTER_API_KEY')
 endpoint = "https://openrouter.ai/api/v1"
 chat_client = OpenAI(api_key=api_key, base_url=endpoint)
 
-# ChromaDB setup
-chroma_client = chromadb.Client()
+# ChromaDB setup with persistent storage
+chroma_client = chromadb.PersistentClient(path="./chroma_db")
 collection = chroma_client.get_or_create_collection(name="jokes")
 
 def load_jokes():
