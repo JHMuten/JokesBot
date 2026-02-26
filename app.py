@@ -22,6 +22,50 @@ chat_client = OpenAI(api_key=api_key, base_url=endpoint)
 chroma_client = chromadb.PersistentClient(path="./chroma_db")
 collection = chroma_client.get_or_create_collection(name="jokes")
 
+# Initialize ChromaDB on module load (not just in __main__)
+def _initialize_on_startup():
+    """Ensure ChromaDB is initialized when the module loads."""
+    try:
+        count = collection.count()
+        print(f"ChromaDB startup check: {count} jokes in collection")
+        
+        if count == 0:
+            print("ChromaDB is empty, initializing...")
+            jokes = load_jokes()
+            
+            if jokes:
+                documents = []
+                metadatas = []
+                ids = []
+                
+                for i, joke in enumerate(jokes):
+                    if joke.get('type') == 'single':
+                        joke_text = joke.get('joke', '')
+                    else:
+                        joke_text = f"{joke.get('setup', '')} {joke.get('delivery', '')}"
+                    
+                    documents.append(joke_text)
+                    metadatas.append({
+                        'category': joke.get('category', 'Unknown'),
+                        'type': joke.get('type', 'unknown'),
+                        'id': str(joke.get('id', i))
+                    })
+                    ids.append(f"joke_{i}")
+                
+                collection.add(
+                    documents=documents,
+                    metadatas=metadatas,
+                    ids=ids
+                )
+                print(f"Initialized ChromaDB with {len(documents)} jokes")
+        else:
+            print(f"ChromaDB already initialized with {count} jokes")
+    except Exception as e:
+        print(f"Error during ChromaDB initialization: {e}")
+
+# Run initialization when module loads
+_initialize_on_startup()
+
 def load_jokes():
     """Load jokes from the JSON file."""
     try:
@@ -39,33 +83,10 @@ def format_joke(joke):
     return str(joke)
 
 def initialize_chroma():
-    """Initialize ChromaDB with jokes if not already done."""
-    jokes = load_jokes()
-    
-    # Check if collection is empty
-    if collection.count() == 0 and jokes:
-        print("Initializing ChromaDB with jokes...")
-        
-        documents = []
-        metadatas = []
-        ids = []
-        
-        for i, joke in enumerate(jokes):
-            joke_text = format_joke(joke)
-            documents.append(joke_text)
-            metadatas.append({
-                'category': joke.get('category', 'Unknown'),
-                'type': joke.get('type', 'unknown'),
-                'id': str(joke.get('id', i))
-            })
-            ids.append(f"joke_{i}")
-        
-        collection.add(
-            documents=documents,
-            metadatas=metadatas,
-            ids=ids
-        )
-        print(f"Added {len(documents)} jokes to ChromaDB")
+    """Legacy function - initialization now happens on module load."""
+    count = collection.count()
+    print(f"ChromaDB has {count} jokes")
+    return count
 
 def search_jokes_by_query(query, n_results=3):
     """Search for relevant jokes using ChromaDB."""
@@ -75,6 +96,25 @@ def search_jokes_by_query(query, n_results=3):
     )
     
     return results
+
+@app.route('/health')
+def health_check():
+    """Health check endpoint to verify ChromaDB status."""
+    try:
+        joke_count = collection.count()
+        jokes_loaded = load_jokes()
+        
+        return jsonify({
+            'status': 'healthy',
+            'chromadb_jokes': joke_count,
+            'json_jokes': len(jokes_loaded),
+            'chromadb_initialized': joke_count > 0
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'unhealthy',
+            'error': str(e)
+        }), 500
 
 @app.route('/')
 def home():
@@ -222,11 +262,14 @@ If unclear, return "unknown"."""
         
         # Regular joke request - search and recommend
         try:
+            print(f"Searching ChromaDB for: {user_message}")
             search_results = search_jokes_by_query(user_message, n_results=5)
+            print(f"ChromaDB returned: {len(search_results.get('documents', [[]])[0])} results")
             
             if not search_results['documents'][0]:
                 response_time = (time.time() - start_time) * 1000
                 analytics.log_query(user_message, 'no_results', 0, response_time)
+                print(f"No results found in ChromaDB for query: {user_message}")
                 
                 return jsonify({
                     'response': "I couldn't find any jokes matching your request.",
@@ -383,5 +426,12 @@ def admin_dashboard():
 
 if __name__ == '__main__':
     # Initialize ChromaDB on startup
+    print("="*50)
+    print("Starting Joke Bot...")
+    print(f"ChromaDB collection count: {collection.count()}")
+    print(f"Jokes in JSON: {len(load_jokes())}")
+    print("="*50)
     initialize_chroma()
+    print(f"After initialization - ChromaDB count: {collection.count()}")
+    print("="*50)
     app.run(debug=True)
