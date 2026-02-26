@@ -19,6 +19,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app.py .
 COPY analytics.py .
 COPY jokes.json .
+COPY init_chroma.py .
 COPY templates/ templates/
 
 # Create directories for persistent data
@@ -27,41 +28,7 @@ RUN mkdir -p chroma_db
 # Create analytics file if it doesn't exist
 RUN echo "[]" > analytics.json
 
-# Create initialization script
-RUN echo 'import chromadb\n\
-import json\n\
-\n\
-client = chromadb.PersistentClient(path="./chroma_db")\n\
-collection = client.get_or_create_collection(name="jokes")\n\
-\n\
-if collection.count() == 0:\n\
-    with open("jokes.json") as f:\n\
-        jokes = json.load(f)\n\
-    \n\
-    docs = []\n\
-    metas = []\n\
-    ids = []\n\
-    \n\
-    for i, joke in enumerate(jokes):\n\
-        if joke.get("type") == "single":\n\
-            joke_text = joke.get("joke", "")\n\
-        else:\n\
-            joke_text = f"{joke.get(\"setup\", \"\")} {joke.get(\"delivery\", \"\")}"\n\
-        \n\
-        docs.append(joke_text)\n\
-        metas.append({\n\
-            "category": joke.get("category", "Unknown"),\n\
-            "type": joke.get("type", "unknown"),\n\
-            "id": str(joke.get("id", i))\n\
-        })\n\
-        ids.append(f"joke_{i}")\n\
-    \n\
-    collection.add(documents=docs, metadatas=metas, ids=ids)\n\
-    print(f"Initialized ChromaDB with {len(docs)} jokes")\n\
-else:\n\
-    print(f"ChromaDB already has {collection.count()} jokes")' > init_chroma.py
-
-# Initialize ChromaDB
+# Initialize ChromaDB with jokes
 RUN python init_chroma.py
 
 # Set environment variables
