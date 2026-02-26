@@ -1,0 +1,18 @@
+[
+  {
+    "timestamp": "2026-02-26T16:34:10.263960",
+    "event_type": "query",
+    "user_message": "how many science jokes do you have?",
+    "response_type": "no_results",
+    "jokes_count": 0,
+    "response_time_ms": 1301.0165691375732,
+    "error": null
+  },
+  {
+    "timestamp": "2026-02-26T16:42:55.602801",
+    "event_type": "feedback",
+    "query_id": 1772124173533,
+    "rating": 5,
+    "comment": ""
+  }
+]

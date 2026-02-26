@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Joke Generator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 700px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e9ecef;
+        }
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-size: 16px;
+            color: #666;
+        }
+        .tab.active {
+            color: #007bff;
+            border-bottom: 2px solid #007bff;
+            margin-bottom: -2px;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        #joke-display, #chat-display {
+            min-height: 100px;
+            padding: 20px;
+            margin: 20px 0;
+            background: #f9f9f9;
+            border-radius: 5px;
+            font-size: 18px;
+            line-height: 1.6;
+        }
+        .joke-item {
+            padding: 15px;
+            margin: 10px 0;
+            background: white;
+            border-left: 4px solid #007bff;
+            border-radius: 5px;
+        }
+        button {
+            width: 100%;
+            padding: 15px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .category {
+            display: inline-block;
+            padding: 5px 10px;
+            background: #e9ecef;
+            border-radius: 3px;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        input[type="text"] {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        .send-btn {
+            width: auto;
+            padding: 12px 30px;
+        }
+        .feedback-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #e9ecef;
+        }
+        .feedback-btn {
+            padding: 8px 16px;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        .feedback-btn:hover {
+            background: #f8f9fa;
+        }
+        .feedback-btn.active {
+            background: #007bff;
+            color: white;
+            border-color: #007bff;
+        }
+        .feedback-message {
+            margin-top: 10px;
+            padding: 10px;
+            background: #d4edda;
+            color: #155724;
+            border-radius: 5px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎭 Joke Generator</h1>
+        
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('random')">Random Joke</button>
+            <button class="tab" onclick="switchTab('ai')">Ask AI</button>
+        </div>
+        
+        <div id="random-tab" class="tab-content active">
+            <div id="joke-display">
+                <p>Click the button below to get a joke!</p>
+            </div>
+            <button onclick="getJoke()">Get a Joke</button>
+        </div>
+        
+        <div id="ai-tab" class="tab-content">
+            <div class="input-group">
+                <input type="text" id="user-input" placeholder="Ask for a joke... (e.g., 'Tell me a programming joke')" 
+                       onkeypress="if(event.key==='Enter') askAI()">
+                <button class="send-btn" onclick="askAI()">Send</button>
+            </div>
+            <div id="chat-display">
+                <p>Ask me for a specific type of joke!</p>
+            </div>
+            <div class="feedback-buttons" id="feedback-buttons" style="display: none;">
+                <span>Was this helpful?</span>
+                <button class="feedback-btn" onclick="submitFeedback(5)">👍 Yes</button>
+                <button class="feedback-btn" onclick="submitFeedback(1)">👎 No</button>
+            </div>
+            <div class="feedback-message" id="feedback-message">Thank you for your feedback!</div>
+        </div>
+    </div>
+
+    <script>
+        let lastQueryId = null;
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            
+            if (tab === 'random') {
+                document.querySelector('.tab:nth-child(1)').classList.add('active');
+                document.getElementById('random-tab').classList.add('active');
+            } else {
+                document.querySelector('.tab:nth-child(2)').classList.add('active');
+                document.getElementById('ai-tab').classList.add('active');
+            }
+        }
+
+        async function getJoke() {
+            try {
+                const response = await fetch('/api/joke');
+                const joke = await response.json();
+                
+                if (joke.error) {
+                    document.getElementById('joke-display').innerHTML = 
+                        `<p style="color: red;">${joke.error}</p>`;
+                    return;
+                }
+                
+                displayJoke(joke, 'joke-display');
+            } catch (error) {
+                document.getElementById('joke-display').innerHTML = 
+                    `<p style="color: red;">Error loading joke. Please try again.</p>`;
+            }
+        }
+
+        async function askAI() {
+            const input = document.getElementById('user-input');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            const chatDisplay = document.getElementById('chat-display');
+            chatDisplay.innerHTML = '<p>🤔 Thinking...</p>';
+            
+            // Hide previous feedback buttons
+            document.getElementById('feedback-buttons').style.display = 'none';
+            document.getElementById('feedback-message').style.display = 'none';
+            
+            try {
+                const response = await fetch('/api/ask', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ message })
+                });
+                
+                const data = await response.json();
+                
+                // Generate a simple query ID based on timestamp
+                lastQueryId = Date.now();
+                
+                if (data.error) {
+                    chatDisplay.innerHTML = `<p style="color: red;">${data.error}</p>`;
+                    return;
+                }
+                
+                let html = `<p><strong>${data.response}</strong></p>`;
+                
+                if (data.jokes && data.jokes.length > 0) {
+                    data.jokes.forEach(joke => {
+                        html += formatJokeHTML(joke);
+                    });
+                }
+                
+                chatDisplay.innerHTML = html;
+                input.value = '';
+                
+                // Show feedback buttons
+                document.getElementById('feedback-buttons').style.display = 'flex';
+                
+            } catch (error) {
+                chatDisplay.innerHTML = 
+                    `<p style="color: red;">Error communicating with AI. Please try again.</p>`;
+            }
+        }
+
+        async function submitFeedback(rating) {
+            if (!lastQueryId) return;
+            
+            try {
+                await fetch('/api/feedback', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        query_id: lastQueryId,
+                        rating: rating
+                    })
+                });
+                
+                // Show thank you message
+                document.getElementById('feedback-buttons').style.display = 'none';
+                const feedbackMsg = document.getElementById('feedback-message');
+                feedbackMsg.style.display = 'block';
+                
+                // Hide message after 3 seconds
+                setTimeout(() => {
+                    feedbackMsg.style.display = 'none';
+                }, 3000);
+                
+            } catch (error) {
+                console.error('Error submitting feedback:', error);
+            }
+        }
+
+        function displayJoke(joke, elementId) {
+            let jokeHTML = '';
+            
+            if (joke.type === 'single') {
+                jokeHTML = `<p>${joke.joke}</p>`;
+            } else if (joke.type === 'twopart') {
+                jokeHTML = `
+                    <p><strong>Setup:</strong> ${joke.setup}</p>
+                    <p><strong>Delivery:</strong> ${joke.delivery}</p>
+                `;
+            }
+            
+            jokeHTML += `<span class="category">Category: ${joke.category}</span>`;
+            
+            document.getElementById(elementId).innerHTML = jokeHTML;
+        }
+
+        function formatJokeHTML(joke) {
+            let html = '<div class="joke-item">';
+            
+            if (joke.type === 'single') {
+                html += `<p>${joke.joke}</p>`;
+            } else if (joke.type === 'twopart') {
+                html += `
+                    <p><strong>Setup:</strong> ${joke.setup}</p>
+                    <p><strong>Delivery:</strong> ${joke.delivery}</p>
+                `;
+            }
+            
+            html += `<span class="category">Category: ${joke.category}</span>`;
+            html += '</div>';
+            
+            return html;
+        }
+    </script>
+</body>
+</html>
